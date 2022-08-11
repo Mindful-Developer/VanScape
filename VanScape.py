@@ -15,7 +15,7 @@ def draw_image_centered(win, img, x, y):
 
 
 def load(which, scale_value):
-    img = pygame.image.load(f'Vanscape/imgs/{which}.png').convert_alpha()
+    img = pygame.image.load(f'imgs/{which}.png').convert_alpha()
     w = scale_value * 2
     h = w * img.get_height() / img.get_width()
     return pygame.transform.scale(img, (w, h))
