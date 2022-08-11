@@ -2,7 +2,7 @@ import pygame
 import math
 import random
 import os
-from collections import deque
+
 
 pygame.init()
 OBJ_RADIUS = 20
@@ -278,7 +278,7 @@ if __name__ == "__main__":
     WIDTH = pygame.display.Info().current_w
     HEIGHT = pygame.display.Info().current_h
     win = pygame.display.set_mode((WIDTH, HEIGHT))
-    pygame.display.set_caption("Circle Escape")
+    pygame.display.set_caption("VanScape")
     hemlock_img = load("hemlock", 10)
 
     game = Game()
