@@ -33,14 +33,13 @@ def random_corner():
     return random.choice(corners)
 
 
-class Bullet:
-    def __init__(self, x, y, radius, color, vel):
+class HemBullet:
+    def __init__(self, x, y, radius, vel):
         self.x = x
         self.y = y
         mouse_x, mouse_y = pygame.mouse.get_pos()
         self.direction = math.atan2(mouse_y - self.y, mouse_x - self.x)
         self.radius = radius
-        self.color = color
         self.angle = 0
         self.vel = vel
 
@@ -58,12 +57,67 @@ class Bullet:
         return (self.x - other.x) ** 2 + (self.y - other.y) ** 2 <= (self.radius + other.radius) ** 2
 
 
-class Enemy:
-    def __init__(self, x, y, radius, color):
+class Strawberry:
+    def __init__(self, x, y, radius, vel, direction):
         self.x = x
         self.y = y
         self.radius = radius
-        self.color = color
+        self.vel = vel
+        self.direction = direction
+        self.angle = random.randint(0, 360)
+
+    def draw(self, win):
+        img = pygame.transform.rotate(strawberry_img, self.angle)
+        draw_image_centered(win, img, self.x, self.y)
+
+    def move(self):
+        self.x += self.vel * math.cos(self.direction)
+        self.y += self.vel * math.sin(self.direction)
+        self.angle += 1
+
+    def collide(self, other):
+        return (self.x - other.x) ** 2 + (self.y - other.y) ** 2 <= (self.radius + other.radius) ** 2
+
+class Hamlet:
+    def __init__(self, x, y, radius, vel, bullets):
+        self.x = x
+        self.y = y
+        self.bullets = bullets
+        self.radius = radius
+        self.vel = vel * 2
+        self.angle = 0
+        self.img = load('ham', radius)
+        self.destination_x, self.destination_y = pygame.mouse.get_pos()
+        self.direction = math.atan2(self.destination_y - self.y, self.destination_x - self.x)
+
+    def draw(self, win):
+        hamlet_rotated = pygame.transform.rotate(self.img, self.angle)
+        draw_image_centered(win, hamlet_rotated, self.x, self.y)
+
+    def move(self):
+        self.angle += 1
+        self.x += self.vel * math.cos(self.direction)
+        self.y += self.vel * math.sin(self.direction)
+        if self.destination_x - self.radius < self.x < self.destination_x + self.radius:
+            if self.destination_y - self.radius < self.y < self.destination_y + self.radius:
+                self.explode()
+
+    def explode(self):
+        num_berries = random.randint(5, 20)
+        for i in range(num_berries):
+            strawberry = Strawberry(self.x, self.y, 7, self.vel, 360 // num_berries * i)
+            self.bullets.append(strawberry)
+        self.bullets.remove(self)
+
+    def collide(self, other):
+        return (self.x - other.x) ** 2 + (self.y - other.y) ** 2 <= (self.radius + other.radius) ** 2
+
+
+class Enemy:
+    def __init__(self, x, y, radius):
+        self.x = x
+        self.y = y
+        self.radius = radius
         self.vel = 0.25
         self.level = 0
         self.angle = 0
@@ -79,15 +133,18 @@ class Enemy:
         mouse_x, mouse_y = pygame.mouse.get_pos()
         angle = math.atan2(mouse_y - self.y, mouse_x - self.x)
         self.angle = angle
-        self.x += (self.vel + self.level / 100 * 5) * math.cos(angle)
-        self.y += (self.vel + self.level / 100 * 5) * math.sin(angle)
-        if random.randint(0, 100) >= 99:
+        self.x += (self.vel + self.level / 100 * 2) * math.cos(angle)
+        self.y += (self.vel + self.level / 100 * 2) * math.sin(angle)
+        if random.random() < 0.01:
             self.shoot(win)
 
     def shoot(self, win):
-        bullet = Bullet(self.x, self.y, self.bullet_size, self.color, self.vel)
-        bullet.draw(win)
+        bullet = HemBullet(self.x, self.y, self.bullet_size, self.vel)
         self.bullets.append(bullet)
+
+    def ham_attack(self, win, bullets):
+        ham = Hamlet(self.x, self.y, 20, self.vel + self.level / 100 * 2, bullets)
+        self.bullets.append(ham)
 
     def collide(self, other):
         return (self.x - other.x) ** 2 + (self.y - other.y) ** 2 <= (self.radius + other.radius) ** 2
@@ -98,11 +155,10 @@ class Enemy:
 
 
 class Player:
-    def __init__(self, x, y, radius, color):
+    def __init__(self, x, y, radius):
         self.x = x
         self.y = y
         self.radius = radius
-        self.color = color
         self.lives = 3
         self.imgs = [load(f"butterfly blue animation {num} 1200", radius) for num in range(1, 16)]
         self.img_index = 0
@@ -135,6 +191,20 @@ class Player:
             self.img_index += 1
             self.img_index %= len(self.imgs)
             self.counter = 10
+
+    def collide(self, other):
+        return (self.x - other.x) ** 2 + (self.y - other.y) ** 2 <= (self.radius + other.radius) ** 2
+
+
+class Flower:
+    def __init__(self, x, y, radius):
+        self.x = x
+        self.y = y
+        self.radius = radius
+        self.extra_life = 1
+
+    def draw(self, win):
+        draw_image_centered(win, flower_img, self.x, self.y)
 
     def collide(self, other):
         return (self.x - other.x) ** 2 + (self.y - other.y) ** 2 <= (self.radius + other.radius) ** 2
@@ -176,9 +246,10 @@ class Score:
 
 class Game:
     def __init__(self):
-        self.enemy = Enemy(*random_corner(), OBJ_RADIUS * 2, (255, 0, 0))
-        self.player = Player(WIDTH / 2, HEIGHT / 2, OBJ_RADIUS, (0, 255, 0))
+        self.enemy = Enemy(*random_corner(), OBJ_RADIUS * 2)
+        self.player = Player(WIDTH / 2, HEIGHT / 2, OBJ_RADIUS)
         self.score = Score()
+        self.flowers = []
 
     def game_over_screen(self):
         win.fill((0, 0, 0))
@@ -208,6 +279,8 @@ class Game:
                     self.run()
 
     def draw(self, win):
+        for flower in self.flowers:
+            flower.draw(win)
         self.player.draw(win)
         for bullet in self.enemy.bullets:
             bullet.draw(win)
@@ -218,10 +291,11 @@ class Game:
         self.enemy.move()
         self.player.move()
         self.score.update()
-        for bullet in self.enemy.bullets:
+        for bullet_num in range(len(self.enemy.bullets) - 1, -1, -1):
+            bullet = self.enemy.bullets[bullet_num]
             bullet.move()
             if bullet.x < 0 or bullet.x > WIDTH or bullet.y < 0 or bullet.y > HEIGHT:
-                self.enemy.bullets.remove(bullet)
+                self.enemy.bullets.pop(bullet_num)
 
     def reset(self):
         self.enemy.reset()
@@ -243,10 +317,21 @@ class Game:
                 if self.player.lives == 0:
                     self.game_over_screen()
                 self.enemy.bullets.remove(bullet)
+        if self.flowers:
+            for flower in self.flowers:
+                if flower.collide(self.player):
+                    self.player.lives += flower.extra_life
+                    self.flowers.remove(flower)
+                    if self.player.lives > 3:
+                        self.player.lives = 3
 
     def check_score(self):
         if self.score.score % 500 == 0 and self.score.score != 0:
             self.enemy.level += 1
+        if self.score.score % 1000 == 0 and self.score.score != 0:
+            self.enemy.ham_attack(win, self.enemy.bullets)
+        if self.score.score % 10000 == 0 and self.score.score != 0:
+            self.flowers.append(Flower(random.randint(0, WIDTH), random.randint(0, HEIGHT), OBJ_RADIUS))
 
     @staticmethod
     def check_quit():
@@ -280,6 +365,8 @@ if __name__ == "__main__":
     win = pygame.display.set_mode((WIDTH, HEIGHT))
     pygame.display.set_caption("VanScape")
     hemlock_img = load("hemlock", 10)
+    strawberry_img = load("strawberry", 10)
+    flower_img = load("flower", 20)
 
     game = Game()
     game.run()
