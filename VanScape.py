@@ -5,7 +5,7 @@ import os
 
 
 pygame.init()
-OBJ_RADIUS = 20
+OBJ_RADIUS = 30
 
 
 def draw_image_centered(win, img, x, y):
@@ -86,12 +86,11 @@ class Hamlet:
         self.radius = radius
         self.vel = vel * 2
         self.angle = 0
-        self.img = load('ham', radius)
         self.destination_x, self.destination_y = pygame.mouse.get_pos()
         self.direction = math.atan2(self.destination_y - self.y, self.destination_x - self.x)
 
     def draw(self, win):
-        hamlet_rotated = pygame.transform.rotate(self.img, self.angle)
+        hamlet_rotated = pygame.transform.rotate(ham_img, self.angle)
         draw_image_centered(win, hamlet_rotated, self.x, self.y)
 
     def move(self):
@@ -105,7 +104,7 @@ class Hamlet:
     def explode(self):
         num_berries = random.randint(5, 20)
         for i in range(num_berries):
-            strawberry = Strawberry(self.x, self.y, 7, self.vel, 360 // num_berries * i)
+            strawberry = Strawberry(self.x, self.y, self.radius // 2, self.vel, 360 // num_berries * i)
             self.bullets.append(strawberry)
         self.bullets.remove(self)
 
@@ -123,7 +122,7 @@ class Enemy:
         self.angle = 0
         self.bullets = []
         self.img = load("van", radius)
-        self.bullet_size = 10
+        self.bullet_size = radius // 2
 
     def draw(self, win):
         img = pygame.transform.rotate(self.img, math.degrees(-self.angle))
@@ -143,7 +142,7 @@ class Enemy:
         self.bullets.append(bullet)
 
     def ham_attack(self, win, bullets):
-        ham = Hamlet(self.x, self.y, 20, self.vel + self.level / 100 * 2, bullets)
+        ham = Hamlet(self.x, self.y, self.radius // 2, self.vel + self.level / 100 * 2, bullets)
         self.bullets.append(ham)
 
     def collide(self, other):
@@ -230,7 +229,6 @@ class Score:
         text2 = font.render(f"Best: {self.high_score}", 1, (255, 255, 255))
         win.blit(text, (WIDTH // 2 - 100, 10))
         win.blit(text2, (10, 10))
-
 
     def update(self):
         self.score += 1
@@ -322,8 +320,6 @@ class Game:
                 if flower.collide(self.player):
                     self.player.lives += flower.extra_life
                     self.flowers.remove(flower)
-                    if self.player.lives > 3:
-                        self.player.lives = 3
 
     def check_score(self):
         if self.score.score % 500 == 0 and self.score.score != 0:
@@ -353,7 +349,8 @@ class Game:
             self.update()
             self.check_collision()
             self.check_score()
-            win.fill((0, 0, 0))
+            # win.blit(grass_img, (0, 0))
+            win.fill((0, 40, 0))
             self.draw(win)
             pygame.display.update()
 
@@ -364,9 +361,11 @@ if __name__ == "__main__":
     HEIGHT = pygame.display.Info().current_h
     win = pygame.display.set_mode((WIDTH, HEIGHT))
     pygame.display.set_caption("VanScape")
-    hemlock_img = load("hemlock", 10)
-    strawberry_img = load("strawberry", 10)
-    flower_img = load("flower", 20)
+    hemlock_img = load("hemlock", OBJ_RADIUS // 2)
+    ham_img = load('ham', OBJ_RADIUS)
+    strawberry_img = load("strawberry", OBJ_RADIUS // 2)
+    flower_img = load("flower", OBJ_RADIUS)
+    # grass_img = load("grass", 1080)
 
     game = Game()
     game.run()
